@@ -181,15 +181,17 @@ def get_weather_openweathermap_task():
             return error_msg, None, None
             
         weather_data = response.json()  # Parse JSON response
-        print(f"[{CoreServerModule.get_current_time_formatted()}] Successfully retrieved weather data, formatting...")
-        formatted_weather = format_weather_data(weather_data)
         
-        # Add new row to weatherdata table with current timestamp and weather data
+        # Store the raw JSON data first
         print(f"[{CoreServerModule.get_current_time_formatted()}] Storing weather data in database...")
         app_tables.weatherdata.add_row(
             timestamp=datetime.now(timezone.utc),
             weatherdata_openweathermap=weather_data
         )
+        
+        # Format the data for display only after storing
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Formatting weather data for display...")
+        formatted_weather = format_weather_data(weather_data)
         
         print(f"[{CoreServerModule.get_current_time_formatted()}] Weather data update completed successfully")
         return "Successfully retrieved and stored OpenWeatherMap data", weather_data, formatted_weather

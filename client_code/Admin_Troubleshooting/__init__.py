@@ -25,12 +25,6 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
       try:
         status, cached_data, formatted_weather = anvil.server.call('check_weather_cache')
         self.log_message(status)
-      except anvil.server.NoServerFunctionError:
-        self.log_message("Error: Server function 'check_weather_cache' not found. Please ensure the server code is up to date.")
-        return
-      except anvil.server.ConnectionError:
-        self.log_message("Error: Could not connect to the server. Please check your internet connection.")
-        return
       except Exception as e:
         self.log_message(f"Error checking cache: {str(e)}")
         return
@@ -54,9 +48,6 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
             self.log_message("Failed to retrieve weather data. Check the log for details.")
             return
             
-        except anvil.server.ConnectionError:
-          self.log_message("Error: Could not connect to the server while fetching fresh data.")
-          return
         except Exception as e:
           self.log_message(f"Error fetching fresh data: {str(e)}")
           return
