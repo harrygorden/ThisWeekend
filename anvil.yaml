@@ -8,10 +8,10 @@ db_schema:
   weatheranalysis:
     client: none
     columns:
-    - admin_ui: {order: 0, width: 200}
+    - admin_ui: {width: 200}
       name: timestamp
       type: datetime
-    - admin_ui: {order: 1, width: 200}
+    - admin_ui: {width: 200}
       name: weatheranalysis
       type: string
     server: full
@@ -19,12 +19,15 @@ db_schema:
   weatherdata:
     client: none
     columns:
-    - admin_ui: {order: 0, width: 200}
+    - admin_ui: {width: 200}
       name: timestamp
       type: datetime
-    - admin_ui: {order: 1, width: 200}
+    - admin_ui: {width: 200}
       name: weatherdata_openweathermap
       type: simpleObject
+    - admin_ui: {width: 200}
+      name: formatted_weather
+      type: string
     server: full
     title: WeatherData
 dependencies: []
