@@ -33,3 +33,14 @@ def timestamp_to_local(ts):
     central = timezone(timedelta(hours=-6))  # Central Standard Time (UTC-6)
     local_time = utc_time.astimezone(central)
     return local_time.strftime("%I:%M %p")
+
+def get_current_time_formatted():
+    """
+    Get current time formatted in 24-hour Central time
+    Returns:
+        String formatted as HH:MM:SS
+    """
+    utc_time = datetime.now(timezone.utc)
+    central = timezone(timedelta(hours=-6))  # Central Standard Time (UTC-6)
+    local_time = utc_time.astimezone(central)
+    return local_time.strftime("%H:%M:%S")
