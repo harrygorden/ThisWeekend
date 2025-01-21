@@ -113,9 +113,15 @@ def check_weather_cache():
             creation_time = most_recent['timestamp'].replace(tzinfo=timezone.utc).astimezone()
             creation_time_str = creation_time.strftime("%Y-%m-%d %H:%M:%S %Z")
             
+            # Calculate expiration time
+            expiration_time = most_recent['timestamp'] + timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration)
+            expiration_time_local = expiration_time.replace(tzinfo=timezone.utc).astimezone()
+            expiration_time_str = expiration_time_local.strftime("%H:%M:%S")
+            
             status_lines = [
                 f"Entry creation time: {creation_time_str}",
                 f"    Entry age: {minutes_old} minutes",
+                f"    Once weather data is requested, after {expiration_time_str}, it will be updated from external sources."
             ]
             
             weather_data = most_recent['weatherdata_openweathermap']
