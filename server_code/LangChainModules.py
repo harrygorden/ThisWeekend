@@ -41,6 +41,12 @@ def split_json_data(json_data, max_chunk_size=1000, convert_lists=True):
         splitter = RecursiveJsonSplitter(max_chunk_size=max_chunk_size)
         
         anvil.server.task_state['status'] = 'Splitting JSON data'
+        
+        # Ensure json_data is a dictionary
+        if isinstance(json_data, str):
+            import json
+            json_data = json.loads(json_data)
+        
         # Split the JSON data into text chunks
         chunks = splitter.split_text(json_data=json_data, convert_lists=convert_lists)
         
@@ -54,10 +60,21 @@ def split_json_data(json_data, max_chunk_size=1000, convert_lists=True):
         print(f"[{CoreServerModule.get_current_time_formatted()}] - Maximum chunk size: {max_size:.0f} characters")
         
         anvil.server.task_state['status'] = f'Completed splitting into {len(chunks)} chunks'
+        
+        # If no chunks were created, return the original data as a single chunk
+        if not chunks:
+            if isinstance(json_data, dict):
+                return [json.dumps(json_data)]
+            return [str(json_data)]
+            
         return chunks
         
     except Exception as e:
         error_msg = f"Error splitting JSON data: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
         anvil.server.task_state['status'] = f'Error: {error_msg}'
-        raise Exception(error_msg)
+        
+        # Return original data as a single chunk on error
+        if isinstance(json_data, dict):
+            return [json.dumps(json_data)]
+        return [str(json_data)]

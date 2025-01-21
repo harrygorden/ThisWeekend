@@ -267,17 +267,31 @@ def check_weather_analysis_cache():
     Returns a tuple of (status_message, analysis_text) where analysis_text may be None if cache is invalid
     """
     try:
-        # Get the most recent weather analysis entry
-        recent_analysis = app_tables.weatheranalysis.search(
+        # Ensure settings table exists and has default values
+        if not app_tables.get('settings'):
+            print(f"[{CoreServerModule.get_current_time_formatted()}] Creating settings table with default values")
+            app_tables.add_table('settings', 
+                               columns=[
+                                   ('WeatherDataCacheExpiration', 'number'),
+                                   ('WeatherAnalysisCacheExpiration', 'number')
+                               ])
+            # Add default settings
+            app_tables.settings.add_row(
+                WeatherDataCacheExpiration=30,  # 30 minutes
+                WeatherAnalysisCacheExpiration=30  # 30 minutes
+            )
+
+        # Get most recent analysis from cache
+        most_recent = app_tables.weatheranalysis.search(
             tables.order_by("timestamp", ascending=False)
         )
         
-        if recent_analysis and len(recent_analysis) > 0:
-            most_recent = recent_analysis[0]
+        if most_recent and len(most_recent) > 0:
+            most_recent = most_recent[0]
             
             # Delete any older entries
-            if len(recent_analysis) > 1:
-                for old_entry in recent_analysis[1:]:
+            if len(most_recent) > 1:
+                for old_entry in most_recent[1:]:
                     old_entry.delete()
             
             current_time = datetime.now(timezone.utc)
@@ -285,7 +299,7 @@ def check_weather_analysis_cache():
             minutes_old = int(cache_age.total_seconds() / 60)
             
             # Check if cache has expired
-            if minutes_old <= app_tables.settings.get_by_id(1)['WeatherDataCacheExpiration']:
+            if minutes_old <= app_tables.settings.get_by_id(1)['WeatherAnalysisCacheExpiration']:
                 return (f"Using cached analysis from {minutes_old} minutes ago", most_recent['weatheranalysis'])
             else:
                 return (f"Cached analysis expired ({minutes_old} minutes old)", None)
@@ -398,25 +412,25 @@ def generate_weather_analysis_task(weather_data):
 3. Notable weather patterns in the next 5 days
 4. Any significant weather events or hazards
 Keep the analysis brief but informative."""
-
-        # Create messages for the API call
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": f"Please analyze this weather data and provide a clear summary: {json_str}"}
-        ]
-
+        
         from . import LangChainModules
         
         # Initialize OpenAI client
         client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
-        # Split the weather data into chunks
-        anvil.server.task_state['status'] = 'Starting JSON splitting task'
-        split_task = anvil.server.launch_background_task('split_json_data', optimized_data, max_chunk_size=2000)
-        
-        # Wait for chunks and update status
-        anvil.server.task_state['status'] = 'Waiting for JSON splitting to complete'
-        chunks = split_task.get_result()
+        try:
+            # Split the weather data into chunks
+            anvil.server.task_state['status'] = 'Starting JSON splitting task'
+            split_task = anvil.server.launch_background_task('split_json_data', optimized_data, max_chunk_size=2000)
+            
+            # Wait for chunks and update status with timeout
+            anvil.server.task_state['status'] = 'Waiting for JSON splitting to complete'
+            chunks = split_task.get_result(timeout=30)  # 30 second timeout
+            
+        except Exception as e:
+            print(f"[{CoreServerModule.get_current_time_formatted()}] Error in JSON splitting: {str(e)}")
+            # If splitting fails, try to analyze the entire optimized data as one chunk
+            chunks = [json_str]
         
         # Process each chunk and collect insights
         all_analyses = []
