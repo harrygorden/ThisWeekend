@@ -300,17 +300,36 @@ def check_weather_analysis_cache():
 @anvil.server.callable
 def generate_weather_analysis(weather_data):
     """
-    Generates a weather analysis using OpenAI's GPT-4 model.
-    Returns the generated analysis text.
+    Launches a background task to generate weather analysis using OpenAI's GPT-4 model.
+    Returns the background task that will eventually provide the analysis.
+    """
+    try:
+        # Launch the background task
+        task = anvil.server.launch_background_task('generate_weather_analysis_task', weather_data)
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Launched weather analysis background task")
+        return task
+        
+    except Exception as e:
+        error_msg = f"Error launching weather analysis task: {str(e)}"
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+        return None
+
+@anvil.server.background_task
+def generate_weather_analysis_task(weather_data):
+    """
+    Background task that generates a weather analysis using OpenAI's GPT-4 model.
     """
     try:
         from . import LangChainModules
+        
+        # Update task state
+        anvil.server.task_state['status'] = 'Initializing OpenAI client'
         
         # Initialize OpenAI client
         client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
         # Split the weather data into manageable chunks
-        # Using a smaller max_chunk_size to ensure we stay well under the token limit
+        anvil.server.task_state['status'] = 'Splitting weather data into chunks'
         chunks = LangChainModules.split_json_data(weather_data, max_chunk_size=2000)
         
         # Prepare the system message
@@ -322,6 +341,8 @@ def generate_weather_analysis(weather_data):
         all_analyses = []
         for i, chunk in enumerate(chunks):
             try:
+                anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
+                
                 response = client.chat.completions.create(
                     model="gpt-4",
                     messages=[
@@ -346,6 +367,8 @@ def generate_weather_analysis(weather_data):
         
         # Combine all analyses into a final summary
         try:
+            anvil.server.task_state['status'] = 'Generating final summary'
+            
             final_prompt = "Based on the following weather analysis chunks, provide a concise and coherent summary:\n\n"
             final_prompt += "\n\n".join(all_analyses)
             
@@ -362,20 +385,23 @@ def generate_weather_analysis(weather_data):
             final_analysis = response.choices[0].message.content
             
             # Store the analysis in the database
+            anvil.server.task_state['status'] = 'Storing analysis in database'
             app_tables.weatheranalysis.add_row(
                 timestamp=datetime.now(timezone.utc),
                 weatheranalysis=final_analysis
             )
             
-            return final_analysis
+            anvil.server.task_state['status'] = 'Complete'
+            return {'analysis': final_analysis}
             
         except Exception as e:
             error_msg = f"Error generating final summary: {str(e)}"
             print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
             # If we can't generate a summary, return the first analysis
-            return all_analyses[0]
+            return {'analysis': all_analyses[0]}
         
     except Exception as e:
         error_msg = f"Error generating weather analysis: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-        raise Exception(error_msg)
+        anvil.server.task_state['error'] = error_msg
+        return None

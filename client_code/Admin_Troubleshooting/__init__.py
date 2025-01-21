@@ -132,10 +132,30 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
       if analysis is None:
         self.log_message("Generating new weather analysis...", self.rich_text_weather_analysis_logging)
         try:
-          analysis = anvil.server.call('generate_weather_analysis', weather_data)
-          if not analysis:
-            self.log_message("Failed to generate weather analysis", self.rich_text_weather_analysis_logging)
+          # Launch the analysis task
+          task = anvil.server.call('generate_weather_analysis', weather_data)
+          if task is None:
+            self.log_message("Failed to launch weather analysis task", self.rich_text_weather_analysis_logging)
             return
+          
+          # Monitor the task progress
+          while not task.is_completed():
+            state = task.get_state()
+            if 'error' in state:
+              self.log_message(f"Error in analysis task: {state['error']}", self.rich_text_weather_analysis_logging)
+              return
+            if 'status' in state:
+              self.log_message(state['status'], self.rich_text_weather_analysis_logging)
+            anvil.server.call('sleep', 0.5)
+          
+          # Get the final results
+          result = task.get_return_value()
+          if not result or 'analysis' not in result:
+            self.log_message("No analysis received from task", self.rich_text_weather_analysis_logging)
+            return
+            
+          analysis = result['analysis']
+          
         except Exception as e:
           self.log_message(f"Error generating analysis: {str(e)}", self.rich_text_weather_analysis_logging)
           return
