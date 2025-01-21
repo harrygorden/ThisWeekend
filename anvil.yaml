@@ -33,7 +33,7 @@ package_name: ThisWeekend
 renamed: true
 runtime_options:
   client_version: '3'
-  server_spec: {base: python310-minimal}
+  server_spec: {base: python310-standard}
   server_version: python3-sandbox
   version: 2
 secrets:
