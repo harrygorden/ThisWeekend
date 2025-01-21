@@ -3,26 +3,26 @@ import anvil.tables.query as q
 from anvil.tables import app_tables
 import anvil.secrets
 import anvil.server
-
-# This is a server module. It runs on the Anvil server,
-# rather than in the user's browser.
-#
-# To allow anvil.server.call() to call functions here, we mark
-# them with @anvil.server.callable.
-# Here is an example - you can replace it with your own:
-#
-# @anvil.server.callable
-# def say_hello(name):
-#   print("Hello, " + name + "!")
-#   return 42
-#
 import requests
 
-url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
+#  This module runs on an Anvil server in the server environment.
+#  It is not run in the user's browser.  All functions defined in this
+#  module should be callable with @anvil.server.callable.
 
-payload = {}
-headers = {}
+@anvil.server.callable
+def get_weather_openweathermap():
+    url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
 
-response = requests.request("GET", url, headers=headers, data=payload)
+    payload = {}
+    headers = {}
 
-print(response.text)
+    response = requests.request("GET", url, headers=headers, data=payload)
+    weather_data = response.json()  # Parse JSON response
+    
+    # Add new row to weatherdata table with current timestamp and weather data
+    app_tables.weatherdata.add_row(
+        timestamp=tables.now(),
+        weatherdata_openweathermap=weather_data
+    )
+    
+    return weather_data
