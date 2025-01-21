@@ -31,27 +31,23 @@ def format_weather_data(weather_data):
         today = daily[0]
         tomorrow = daily[1] if len(daily) > 1 else {}
         
-        # Convert temperature from Kelvin to Fahrenheit
-        def k_to_f(k):
-            return round((k - 273.15) * 9/5 + 32, 1)
-        
         # Current time from the API data
         current_time = CoreServerModule.timestamp_to_local(current.get('dt', 0))
         
-        current_temp = k_to_f(current.get('temp', 0))
-        feels_like = k_to_f(current.get('feels_like', 0))
+        current_temp = current.get('temp', 0)
+        feels_like = current.get('feels_like', 0)
         humidity = current.get('humidity', 0)
-        wind_speed = round(current.get('wind_speed', 0) * 2.237, 1)  # Convert m/s to mph
+        wind_speed = current.get('wind_speed', 0)
         
         # Get today's high/low and conditions
-        today_high = k_to_f(today.get('temp', {}).get('max', 0))
-        today_low = k_to_f(today.get('temp', {}).get('min', 0))
+        today_high = today.get('temp', {}).get('max', 0)
+        today_low = today.get('temp', {}).get('min', 0)
         today_weather = today.get('weather', [{}])[0]
         today_description = today_weather.get('description', 'No description available').capitalize()
         
         # Get tomorrow's high/low and conditions
-        tomorrow_high = k_to_f(tomorrow.get('temp', {}).get('max', 0))
-        tomorrow_low = k_to_f(tomorrow.get('temp', {}).get('min', 0))
+        tomorrow_high = tomorrow.get('temp', {}).get('max', 0)
+        tomorrow_low = tomorrow.get('temp', {}).get('min', 0)
         tomorrow_weather = tomorrow.get('weather', [{}])[0]
         tomorrow_description = tomorrow_weather.get('description', 'No description available').capitalize()
         
@@ -87,7 +83,7 @@ def format_weather_data(weather_data):
             if i < len(hourly):
                 hour_data = hourly[i * 3]  # Get every 3rd hour
                 time = CoreServerModule.timestamp_to_local(hour_data.get('dt', 0))
-                temp = k_to_f(hour_data.get('temp', 0))
+                temp = hour_data.get('temp', 0)
                 weather = hour_data.get('weather', [{}])[0]
                 description = weather.get('description', 'No description available').capitalize()
                 formatted_weather.append(
