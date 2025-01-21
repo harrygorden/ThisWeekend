@@ -12,3 +12,9 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
     self.init_components(**properties)
 
     # Any code you write here will run before the form opens.
+
+  def button_weather_retrieval_click(self, **event_args):
+    """This method is called when the button is clicked"""
+    # Call the server function to get and save weather data
+    weather_data = anvil.server.call('get_weather_openweathermap')
+    Notification("Weather data has been retrieved and saved to the database.").show()
