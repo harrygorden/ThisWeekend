@@ -1,0 +1,60 @@
+components:
+- components:
+  - components:
+    - layout_properties: {grid_position: 'JQPOSX,MNWHEZ'}
+      name: label_weather_retrieval_and_analysis_title
+      properties: {align: center, bold: true, font_size: 24, spacing_above: none, spacing_below: none, text: Weather Retrieval & Analysis, underline: true}
+      type: Label
+    layout_properties: {grid_position: 'HIIKVJ,BYGIPS'}
+    name: outlined_card_weather_retrievel_and_analysis_title
+    properties: {role: outlined-card}
+    type: ColumnPanel
+  - components:
+    - layout_properties: {grid_position: 'JUDDQZ,WCVAUY'}
+      name: label_weather_retrieval_title
+      properties: {align: center, bold: true, font_size: 20, text: Weather Retrievel, underline: true}
+      type: Label
+    - layout_properties: {grid_position: 'BZFKSQ,EUZTIT'}
+      name: button_weather_retrieval
+      properties: {background: 'theme:Primary', foreground: 'theme:On Primary', text: Retrieve Weather Information}
+      type: Button
+    - layout_properties: {grid_position: 'XBZYSL,ADLPRM'}
+      name: label_weather_retrieval_logging
+      properties: {align: center, bold: true, text: Logging, underline: true}
+      type: Label
+    - layout_properties: {grid_position: 'JONUSX,AOAXVC'}
+      name: rich_text_weather_retrieval_logging
+      properties: {}
+      type: RichText
+    - layout_properties: {grid_position: 'ZXTISL,DXFZDP'}
+      name: label_weather_retrieval_output
+      properties: {align: center, bold: true, text: Output, underline: true}
+      type: Label
+    - layout_properties: {grid_position: 'QVNUKN,AIQBIB'}
+      name: rich_text_weather_retrieval_output
+      properties: {}
+      type: RichText
+    layout_properties: {grid_position: 'KRKDDV,ENAJWS'}
+    name: outlined_card_weather_retrievel
+    properties: {role: outlined-card}
+    type: ColumnPanel
+  - layout_properties: {grid_position: 'KRKDDV,KWKQBO'}
+    name: outlined_card_weather_analysis
+    properties: {role: outlined-card}
+    type: ColumnPanel
+  layout_properties: {slot: default}
+  name: content_panel
+  properties: {col_widths: '{}'}
+  type: ColumnPanel
+- layout_properties: {slot: nav-right}
+  name: navbar_links
+  properties: {}
+  type: FlowPanel
+- layout_properties: {slot: title}
+  name: label_admin_troubleshooting_page
+  properties: {bold: true, font_size: 28, text: Admin Troubleshooting}
+  type: Label
+container:
+  properties: {html: '@theme:standard-page.html'}
+  type: HtmlTemplate
+is_package: true
