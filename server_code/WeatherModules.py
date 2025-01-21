@@ -4,14 +4,35 @@ from anvil.tables import app_tables
 import anvil.secrets
 import anvil.server
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
+from . import CoreServerModule
 
-#  This module runs on an Anvil server in the server environment.
-#  It is not run in the user's browser.  All functions defined in this
-#  module should be callable with @anvil.server.callable.
+def check_weather_cache():
+    """
+    Check if we have recent weather data within the cache expiration window.
+    Returns the most recent weather data if valid, None if we need to fetch new data.
+    """
+    # Get the most recent weather data entry
+    recent_weather = app_tables.weatherdata.search(
+        tables.order_by("timestamp", ascending=False)
+    )
+    
+    if recent_weather and len(recent_weather) > 0:
+        most_recent = recent_weather[0]
+        cache_age = datetime.now() - most_recent['timestamp']
+        
+        # If the cache is still valid (less than WeatherDataCacheExpiration minutes old)
+        if cache_age < timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration):
+            return most_recent['weatherdata_openweathermap']
+    
+    return None
 
 @anvil.server.callable
 def get_weather_openweathermap():
+    cached_weather = check_weather_cache()
+    if cached_weather is not None:
+        return cached_weather
+    
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
 
     payload = {}
