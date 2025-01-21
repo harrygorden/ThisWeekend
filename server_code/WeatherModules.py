@@ -291,15 +291,15 @@ def generate_weather_analysis_task(weather_data):
         json_str = json.dumps(optimized_data)
         
         # Update the system message to focus on the most important aspects
-        system_message = """You are a weather analysis expert. Analyze the provided weather data and create a clear, concise summary focusing on:
-1. Current conditions
-2. Key weather changes in the next 24 hours
-3. Notable weather patterns in the next 5 days
-4. Any significant weather events or hazards
+        system_message = """You are a weather analysis expert for Memphis, Tennessee. Analyze the provided weather data and create a clear, concise summary focusing on:
+1. Current conditions in Memphis
+2. Key weather changes in Memphis over the next 24 hours
+3. Notable weather patterns in Memphis over the next 5 days
+4. Any significant weather events or hazards that Memphis residents should be aware of
 
 Note: All measurements are in imperial units (temperatures in °F, wind speeds in mph).
 For a more casual tone, round all measurements to whole numbers - no decimal places.
-Keep the analysis brief and conversational."""
+Keep the analysis brief, conversational, and focused on Memphis only."""
         
         from . import LangChainModules
         
@@ -307,10 +307,10 @@ Keep the analysis brief and conversational."""
         client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
         try:
-            # Split the weather data into chunks
+            # Split the weather data into chunks with a larger size to reduce splitting
             anvil.server.task_state['status'] = 'Starting JSON splitting task'
             try:
-                chunks = LangChainModules.split_json_data(optimized_data, max_chunk_size=2000)
+                chunks = LangChainModules.split_json_data(optimized_data, max_chunk_size=4000)
             except Exception as e:
                 print(f"[{CoreServerModule.get_current_time_formatted()}] Error in JSON splitting: {str(e)}")
                 chunks = [json_str]  # Use single chunk as fallback
