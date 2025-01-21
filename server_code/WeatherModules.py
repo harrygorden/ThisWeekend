@@ -7,6 +7,17 @@ import requests
 from datetime import datetime, timedelta, timezone
 from . import CoreServerModule
 
+#  This module is full of functions used to fetch weather data from external APIs.
+#  As of now, it only supports OpenWeatherMap, but it's extensible to other APIs.
+#  To add a new weather source:
+#  1. Add a new column to the weatherdata table
+#  2. Create a new background task function that fetches and formats the data
+#  3. Create a callable wrapper function to launch the task
+#  4. Add appropriate error handling and progress updates via task_state
+#  5. Update update_all_weather() to include the new source
+#
+#  See get_weather_openweathermap_task() for an example implementation.
+
 def format_weather_data(weather_data):
     """
     Formats the OpenWeatherMap JSON data into a human-readable string
