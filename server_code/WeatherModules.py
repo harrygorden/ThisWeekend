@@ -146,7 +146,7 @@ def get_weather_openweathermap_task():
     try:
         anvil.server.task_state['status'] = 'Starting OpenWeatherMap data fetch'
         print(f"[{CoreServerModule.get_current_time_formatted()}] Starting OpenWeatherMap data fetch...")
-        url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
+        url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}&units=imperial"
 
         payload = {}
         headers = {}
