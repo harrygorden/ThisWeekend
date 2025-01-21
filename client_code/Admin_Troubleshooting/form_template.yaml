@@ -44,7 +44,8 @@ components:
       name: label_weather_analysis_title
       properties: {align: center, bold: true, font_size: 20, text: Weather Analysis, underline: true}
       type: Label
-    - layout_properties: {grid_position: 'CXRENS,FAIJTE'}
+    - event_bindings: {click: button_weather_analysis_click}
+      layout_properties: {grid_position: 'CXRENS,FAIJTE'}
       name: button_weather_analysis
       properties: {background: 'theme:Primary', foreground: 'theme:On Primary', text: Retrieve Weather Data & Analyze}
       type: Button
