@@ -99,6 +99,12 @@ def check_weather_cache():
         
         if recent_weather and len(recent_weather) > 0:
             most_recent = recent_weather[0]
+            
+            # Delete any older entries
+            if len(recent_weather) > 1:
+                for old_entry in recent_weather[1:]:
+                    old_entry.delete()
+            
             current_time = datetime.now(timezone.utc)
             cache_age = current_time - most_recent['timestamp']
             minutes_old = int(cache_age.total_seconds() / 60)
