@@ -39,14 +39,26 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
             self.log_message("Failed to launch weather update task")
             return
             
-          # Wait for the task to complete
-          self.log_message("Waiting for weather data update to complete...")
-          status, weather_data, formatted_weather = task.wait_for_result()
-          if status.startswith("Error"):
-            self.log_message(f"Failed to update weather data: {status}")
+          # Monitor the task's progress
+          while not task.is_completed():
+            state = task.get_state()
+            if 'status' in state:
+              self.log_message(f"Status: {state['status']}")
+            anvil.server.call('sleep', 0.5)  # Wait half a second before checking again
+            
+          # Check for errors
+          if 'error' in task.get_state():
+            self.log_message(f"Error: {task.get_state()['error']}")
             return
-          
-          self.log_message("Weather data successfully updated")
+            
+          # Get the results
+          state = task.get_state()
+          if 'formatted_weather' in state:
+            formatted_weather = state['formatted_weather']
+            self.log_message("Weather data successfully updated")
+          else:
+            self.log_message("No weather data received from task")
+            return
             
         except Exception as e:
           self.log_message(f"Error fetching fresh data: {str(e)}")

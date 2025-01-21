@@ -169,25 +169,29 @@ def update_all_weather():
 def get_weather_openweathermap_task():
     """
     Background task that fetches weather data from OpenWeatherMap API and stores it in the database.
-    Returns a tuple of (status_message, weather_data, formatted_weather)
+    Updates task_state with progress and results
     """
     try:
+        anvil.server.task_state['status'] = 'Starting OpenWeatherMap data fetch'
         print(f"[{CoreServerModule.get_current_time_formatted()}] Starting OpenWeatherMap data fetch...")
         url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
 
         payload = {}
         headers = {}
 
+        anvil.server.task_state['status'] = 'Making API request to OpenWeatherMap'
         print(f"[{CoreServerModule.get_current_time_formatted()}] Making API request to OpenWeatherMap...")
         response = requests.request("GET", url, headers=headers, data=payload)
         if response.status_code != 200:
             error_msg = f"OpenWeatherMap API returned status code {response.status_code}"
             print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-            return error_msg, None, None
+            anvil.server.task_state['error'] = error_msg
+            return
             
         weather_data = response.json()  # Parse JSON response
         
         # Store the raw JSON data first
+        anvil.server.task_state['status'] = 'Storing weather data in database'
         print(f"[{CoreServerModule.get_current_time_formatted()}] Storing weather data in database...")
         app_tables.weatherdata.add_row(
             timestamp=datetime.now(timezone.utc),
@@ -195,19 +199,23 @@ def get_weather_openweathermap_task():
         )
         
         # Format the data for display only after storing
+        anvil.server.task_state['status'] = 'Formatting weather data for display'
         print(f"[{CoreServerModule.get_current_time_formatted()}] Formatting weather data for display...")
         formatted_weather = format_weather_data(weather_data)
         
         print(f"[{CoreServerModule.get_current_time_formatted()}] Weather data update completed successfully")
-        return "Successfully retrieved and stored OpenWeatherMap data", weather_data, formatted_weather
+        anvil.server.task_state['status'] = 'Complete'
+        anvil.server.task_state['weather_data'] = weather_data
+        anvil.server.task_state['formatted_weather'] = formatted_weather
+        
     except requests.exceptions.RequestException as e:
         error_msg = f"Network error while fetching OpenWeatherMap data: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-        return error_msg, None, None
+        anvil.server.task_state['error'] = error_msg
     except Exception as e:
         error_msg = f"Error fetching OpenWeatherMap data: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-        return error_msg, None, None
+        anvil.server.task_state['error'] = error_msg
 
 @anvil.server.callable
 def get_weather_openweathermap():
