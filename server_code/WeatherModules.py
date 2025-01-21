@@ -109,14 +109,15 @@ def check_weather_cache():
             cache_age = current_time - most_recent['timestamp']
             minutes_old = int(cache_age.total_seconds() / 60)
             
-            # Format the creation time in a readable format (convert from UTC to local time)
-            creation_time = most_recent['timestamp'].replace(tzinfo=timezone.utc).astimezone()
-            creation_time_str = creation_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+            # Convert creation time to Central time
+            central = timezone(timedelta(hours=-6))  # Central Standard Time (UTC-6)
+            creation_time = most_recent['timestamp'].replace(tzinfo=timezone.utc).astimezone(central)
+            creation_time_str = creation_time.strftime("%Y-%m-%d %H:%M:%S CST")
             
-            # Calculate expiration time
+            # Calculate expiration time in Central time
             expiration_time = most_recent['timestamp'] + timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration)
-            expiration_time_local = expiration_time.replace(tzinfo=timezone.utc).astimezone()
-            expiration_time_str = expiration_time_local.strftime("%H:%M:%S")
+            expiration_time_central = expiration_time.replace(tzinfo=timezone.utc).astimezone(central)
+            expiration_time_str = expiration_time_central.strftime("%H:%M:%S")
             
             status_lines = [
                 f"Entry creation time: {creation_time_str}",
