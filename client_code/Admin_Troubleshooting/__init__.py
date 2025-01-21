@@ -75,6 +75,77 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
     except Exception as e:
       self.log_message(f"Error retrieving weather data: {str(e)}")
 
+  def button_weather_analysis_click(self, **event_args):
+    """This method is called when the button is clicked"""
+    # Clear the logs
+    self.rich_text_weather_analysis_logging.content = ""
+    self.rich_text_weather_analysis_output.content = ""
+    
+    try:
+      # First check the weather cache
+      self.log_message("Checking weather cache...")
+      try:
+        status, weather_data, _ = anvil.server.call('check_weather_cache')
+        self.log_message(status)
+      except Exception as e:
+        self.log_message(f"Error checking weather cache: {str(e)}")
+        return
+      
+      # If weather data is expired or missing, update it
+      if weather_data is None:
+        self.log_message("Fetching fresh weather data...")
+        try:
+          task = anvil.server.call('update_all_weather')
+          if task is None:
+            self.log_message("Failed to launch weather update task")
+            return
+            
+          # Wait for the task to complete
+          while not task.is_completed():
+            anvil.server.call('sleep', 0.2)
+            
+          # Get the task results
+          state = task.get_state()
+          if 'error' in state:
+            self.log_message(f"Error updating weather: {state['error']}")
+            return
+            
+          weather_data = state.get('weather_data')
+          if not weather_data:
+            self.log_message("No weather data received from update task")
+            return
+            
+        except Exception as e:
+          self.log_message(f"Error updating weather: {str(e)}")
+          return
+      
+      # Now check the analysis cache
+      self.log_message("Checking analysis cache...")
+      try:
+        status, analysis = anvil.server.call('check_weather_analysis_cache')
+        self.log_message(status)
+      except Exception as e:
+        self.log_message(f"Error checking analysis cache: {str(e)}")
+        return
+      
+      # If analysis is expired or missing, generate new analysis
+      if analysis is None:
+        self.log_message("Generating new weather analysis...")
+        try:
+          analysis = anvil.server.call('generate_weather_analysis', weather_data)
+          if not analysis:
+            self.log_message("Failed to generate weather analysis")
+            return
+        except Exception as e:
+          self.log_message(f"Error generating analysis: {str(e)}")
+          return
+      
+      # Display the analysis
+      self.rich_text_weather_analysis_output.content = analysis
+      
+    except Exception as e:
+      self.log_message(f"Unexpected error: {str(e)}")
+
   def log_message(self, message):
     """Helper function to add a message to the rich text box"""
     current_time = datetime.now().strftime("%H:%M:%S")

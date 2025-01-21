@@ -6,6 +6,8 @@ import anvil.server
 import requests
 from datetime import datetime, timedelta, timezone
 from . import CoreServerModule
+import json
+import openai
 
 #  This module is full of functions used to fetch weather data from external APIs.
 #  As of now, it only supports OpenWeatherMap, but it's extensible to other APIs.
@@ -257,3 +259,83 @@ def get_weather_openweathermap():
         error_msg = f"Error launching weather update task: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
         return None
+
+@anvil.server.callable
+def check_weather_analysis_cache():
+    """
+    Check if we have a recent weather analysis within the cache expiration window.
+    Returns a tuple of (status_message, analysis_text) where analysis_text may be None if cache is invalid
+    """
+    try:
+        # Get the most recent weather analysis entry
+        recent_analysis = app_tables.weatheranalysis.search(
+            tables.order_by("timestamp", ascending=False)
+        )
+        
+        if recent_analysis and len(recent_analysis) > 0:
+            most_recent = recent_analysis[0]
+            
+            # Delete any older entries
+            if len(recent_analysis) > 1:
+                for old_entry in recent_analysis[1:]:
+                    old_entry.delete()
+            
+            current_time = datetime.now(timezone.utc)
+            cache_age = current_time - most_recent['timestamp']
+            minutes_old = int(cache_age.total_seconds() / 60)
+            
+            # Check if cache has expired
+            if minutes_old <= app_tables.settings.get_by_id(1)['WeatherDataCacheExpiration']:
+                return (f"Using cached analysis from {minutes_old} minutes ago", most_recent['weatheranalysis'])
+            else:
+                return (f"Cached analysis expired ({minutes_old} minutes old)", None)
+        
+        return ("No cached analysis found", None)
+        
+    except Exception as e:
+        error_msg = f"Error checking analysis cache: {str(e)}"
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+        return (error_msg, None)
+
+@anvil.server.callable
+def generate_weather_analysis(weather_data):
+    """
+    Generates a weather analysis using OpenAI's GPT-4-mini model.
+    Returns the generated analysis text.
+    """
+    try:
+        # Initialize OpenAI client
+        client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key'))
+        
+        # Prepare the messages for the API
+        system_message = "You are an experienced weather forecaster. Take the JSON formatted weather data that is provided to you and generate a weather forecast to help the reader prepare for the hours and days ahead."
+        
+        # Convert weather_data to string if it's not already
+        weather_json = json.dumps(weather_data) if isinstance(weather_data, dict) else str(weather_data)
+        
+        # Make the API call
+        response = client.chat.completions.create(
+            model="gpt-4",  # Note: Using gpt-4 as gpt-4-mini wasn't recognized
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": weather_json}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        # Extract the analysis text
+        analysis_text = response.choices[0].message.content
+        
+        # Store the analysis in the database
+        app_tables.weatheranalysis.add_row(
+            timestamp=datetime.now(timezone.utc),
+            weatheranalysis=analysis_text
+        )
+        
+        return analysis_text
+        
+    except Exception as e:
+        error_msg = f"Error generating weather analysis: {str(e)}"
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+        raise Exception(error_msg)
