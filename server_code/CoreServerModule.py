@@ -4,6 +4,7 @@ from anvil.tables import app_tables
 import anvil.secrets
 import anvil.server
 from datetime import datetime, timedelta, timezone
+import time
 
 # Constants
 WeatherDataCacheExpiration = 1  # Weather data cache expiration time in minutes
@@ -20,6 +21,14 @@ WeatherDataCacheExpiration = 1  # Weather data cache expiration time in minutes
 #   print("Hello, " + name + "!")
 #   return 42
 #
+
+@anvil.server.callable
+def sleep(seconds):
+    """
+    Sleep for the specified number of seconds.
+    Useful for polling background tasks.
+    """
+    time.sleep(seconds)
 
 def timestamp_to_local(ts):
     """

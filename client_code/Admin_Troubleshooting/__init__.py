@@ -44,7 +44,7 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
             state = task.get_state()
             if 'status' in state:
               self.log_message(f"Status: {state['status']}")
-            anvil.server.call('sleep', 0.5)  # Wait half a second before checking again
+            anvil.server.call('sleep', 0.2)  # Wait 200ms before checking again
             
           # Check for errors
           if 'error' in task.get_state():
