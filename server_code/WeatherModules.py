@@ -122,38 +122,20 @@ def check_weather_cache():
             cache_age = current_time - most_recent['timestamp']
             minutes_old = int(cache_age.total_seconds() / 60)
             
-            # Convert creation time to Central time
-            central = timezone(timedelta(hours=-6))  # Central Standard Time (UTC-6)
-            creation_time = most_recent['timestamp'].replace(tzinfo=timezone.utc).astimezone(central)
-            creation_time_str = creation_time.strftime("%Y-%m-%d %H:%M:%S CST")
-            
-            # Calculate expiration time in Central time
-            expiration_time = most_recent['timestamp'] + timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration)
-            expiration_time_central = expiration_time.replace(tzinfo=timezone.utc).astimezone(central)
-            expiration_time_str = expiration_time_central.strftime("%H:%M:%S")
-            
-            status_lines = [
-                f"Entry creation time: {creation_time_str}",
-                f"    Entry age: {minutes_old} minutes",
-            ]
-            
-            weather_data = most_recent['weatherdata_openweathermap']
-            formatted_weather = format_weather_data(weather_data)
-            
-            # If the cache is still valid (less than WeatherDataCacheExpiration minutes old)
-            if cache_age < timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration):
-                status_lines.append(f"    Once weather data is requested, after {expiration_time_str}, it will be updated from external sources.")
-                status_lines.append("    Expiration not reached, using cached data")
-                return "\n".join(status_lines), weather_data, formatted_weather
+            # Check if cache has expired
+            if minutes_old <= CoreServerModule.CacheExpiration:
+                return (f"Using cached weather data from {minutes_old} minutes ago", 
+                       most_recent['weatherdata_openweathermap'], 
+                       most_recent['formatted_weather'])
             else:
-                status_lines.append("    Expiration reached, requesting updated information")
-                return "\n".join(status_lines), None, None
+                return (f"Cached weather data expired ({minutes_old} minutes old)", None, None)
         
-        return "No existing weather data found in cache", None, None
+        return ("No cached weather data found", None, None)
+        
     except Exception as e:
         error_msg = f"Error checking weather cache: {str(e)}"
-        print(f"Server Error in check_weather_cache: {str(e)}")  # Server-side logging
-        return error_msg, None, None
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+        return (error_msg, None, None)
 
 @anvil.server.background_task
 def get_weather_openweathermap_task():
@@ -234,7 +216,8 @@ def update_all_weather():
         print(f"[{CoreServerModule.get_current_time_formatted()}] Storing weather data from all sources...")
         app_tables.weatherdata.add_row(
             timestamp=datetime.now(timezone.utc),
-            weatherdata_openweathermap=state['weather_data']
+            weatherdata_openweathermap=state['weather_data'],
+            formatted_weather=state['formatted_weather']
             # Future weather sources would be added here as new columns
         )
         
@@ -299,7 +282,7 @@ def check_weather_analysis_cache():
             minutes_old = int(cache_age.total_seconds() / 60)
             
             # Check if cache has expired
-            if minutes_old <= app_tables.settings.get_by_id(1)['WeatherAnalysisCacheExpiration']:
+            if minutes_old <= CoreServerModule.CacheExpiration:
                 return (f"Using cached analysis from {minutes_old} minutes ago", most_recent['weatheranalysis'])
             else:
                 return (f"Cached analysis expired ({minutes_old} minutes old)", None)
