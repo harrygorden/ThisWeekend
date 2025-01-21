@@ -41,32 +41,23 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
         try:
           status, weather_data, formatted_weather = anvil.server.call('update_all_weather')
           self.log_message(status)
-          if weather_data is not None:
-            Notification("Weather data has been retrieved and saved to the database.").show()
-          else:
-            Notification("Failed to retrieve weather data. Check the log for details.", style="danger").show()
+          if weather_data is None:
+            self.log_message("Failed to retrieve weather data. Check the log for details.")
             return
         except anvil.server.ConnectionError:
           self.log_message("Error: Could not connect to the server while fetching fresh data.")
-          Notification("Connection error while fetching fresh data.", style="danger").show()
           return
         except Exception as e:
           self.log_message(f"Error fetching fresh data: {str(e)}")
-          Notification("Error fetching fresh data. Check the log for details.", style="danger").show()
           return
       else:
-        Notification("Using cached weather data.").show()
+        self.log_message("Using cached weather data.")
       
       # Display the formatted weather data
-      if formatted_weather:
-        self.rich_text_weather_retrieval_output.content = formatted_weather
-      else:
-        self.rich_text_weather_retrieval_output.content = "No weather data available to display"
-        
+      self.rich_text_weather_retrieval_output.content = formatted_weather
+      
     except Exception as e:
-      error_msg = f"Unexpected error during weather retrieval: {str(e)}"
-      self.log_message(error_msg)
-      Notification(error_msg, style="danger").show()
+      self.log_message(f"Error retrieving weather data: {str(e)}")
 
   def log_message(self, message):
     """Helper function to add a message to the rich text box"""
