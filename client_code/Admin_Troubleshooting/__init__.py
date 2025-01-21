@@ -83,21 +83,21 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
     
     try:
       # First check the weather cache
-      self.log_message("Checking weather cache...")
+      self.log_message("Checking weather cache...", self.rich_text_weather_analysis_logging)
       try:
         status, weather_data, _ = anvil.server.call('check_weather_cache')
-        self.log_message(status)
+        self.log_message(status, self.rich_text_weather_analysis_logging)
       except Exception as e:
-        self.log_message(f"Error checking weather cache: {str(e)}")
+        self.log_message(f"Error checking weather cache: {str(e)}", self.rich_text_weather_analysis_logging)
         return
       
       # If weather data is expired or missing, update it
       if weather_data is None:
-        self.log_message("Fetching fresh weather data...")
+        self.log_message("Fetching fresh weather data...", self.rich_text_weather_analysis_logging)
         try:
           task = anvil.server.call('update_all_weather')
           if task is None:
-            self.log_message("Failed to launch weather update task")
+            self.log_message("Failed to launch weather update task", self.rich_text_weather_analysis_logging)
             return
             
           # Wait for the task to complete
@@ -107,49 +107,51 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
           # Get the task results
           state = task.get_state()
           if 'error' in state:
-            self.log_message(f"Error updating weather: {state['error']}")
+            self.log_message(f"Error updating weather: {state['error']}", self.rich_text_weather_analysis_logging)
             return
             
           weather_data = state.get('weather_data')
           if not weather_data:
-            self.log_message("No weather data received from update task")
+            self.log_message("No weather data received from update task", self.rich_text_weather_analysis_logging)
             return
             
         except Exception as e:
-          self.log_message(f"Error updating weather: {str(e)}")
+          self.log_message(f"Error updating weather: {str(e)}", self.rich_text_weather_analysis_logging)
           return
       
       # Now check the analysis cache
-      self.log_message("Checking analysis cache...")
+      self.log_message("Checking analysis cache...", self.rich_text_weather_analysis_logging)
       try:
         status, analysis = anvil.server.call('check_weather_analysis_cache')
-        self.log_message(status)
+        self.log_message(status, self.rich_text_weather_analysis_logging)
       except Exception as e:
-        self.log_message(f"Error checking analysis cache: {str(e)}")
+        self.log_message(f"Error checking analysis cache: {str(e)}", self.rich_text_weather_analysis_logging)
         return
       
       # If analysis is expired or missing, generate new analysis
       if analysis is None:
-        self.log_message("Generating new weather analysis...")
+        self.log_message("Generating new weather analysis...", self.rich_text_weather_analysis_logging)
         try:
           analysis = anvil.server.call('generate_weather_analysis', weather_data)
           if not analysis:
-            self.log_message("Failed to generate weather analysis")
+            self.log_message("Failed to generate weather analysis", self.rich_text_weather_analysis_logging)
             return
         except Exception as e:
-          self.log_message(f"Error generating analysis: {str(e)}")
+          self.log_message(f"Error generating analysis: {str(e)}", self.rich_text_weather_analysis_logging)
           return
       
       # Display the analysis
       self.rich_text_weather_analysis_output.content = analysis
       
     except Exception as e:
-      self.log_message(f"Unexpected error: {str(e)}")
+      self.log_message(f"Unexpected error: {str(e)}", self.rich_text_weather_analysis_logging)
 
-  def log_message(self, message):
+  def log_message(self, message, target=None):
     """Helper function to add a message to the rich text box"""
     current_time = datetime.now().strftime("%H:%M:%S")
-    if self.rich_text_weather_retrieval_logging.content:
-      self.rich_text_weather_retrieval_logging.content += f"\n[{current_time}] {message}"
+    if target is None:
+      target = self.rich_text_weather_retrieval_logging
+    if target.content:
+      target.content += f"\n[{current_time}] {message}"
     else:
-      self.rich_text_weather_retrieval_logging.content = f"[{current_time}] {message}"
+      target.content = f"[{current_time}] {message}"
