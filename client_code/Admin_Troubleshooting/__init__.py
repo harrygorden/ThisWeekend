@@ -15,6 +15,11 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
 
   def button_weather_retrieval_click(self, **event_args):
     """This method is called when the button is clicked"""
-    # Call the server function to get and save weather data
-    weather_data = anvil.server.call('get_weather_openweathermap')
-    Notification("Weather data has been retrieved and saved to the database.").show()
+    # First check the cache
+    cached_data = anvil.server.call('check_weather_cache')
+    if cached_data is None:
+      # If no valid cached data, update weather from all sources
+      weather_data = anvil.server.call('update_all_weather')
+      Notification("Weather data has been retrieved and saved to the database.").show()
+    else:
+      Notification("Using cached weather data.").show()

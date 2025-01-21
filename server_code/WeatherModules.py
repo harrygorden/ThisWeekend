@@ -28,11 +28,19 @@ def check_weather_cache():
     return None
 
 @anvil.server.callable
+def update_all_weather():
+    """
+    Updates weather data from all available weather sources.
+    Currently only fetches from OpenWeatherMap, but is designed to be extended
+    for additional weather data sources in the future.
+    """
+    return get_weather_openweathermap()
+
+@anvil.server.callable
 def get_weather_openweathermap():
-    cached_weather = check_weather_cache()
-    if cached_weather is not None:
-        return cached_weather
-    
+    """
+    Fetches weather data from OpenWeatherMap API and stores it in the database.
+    """
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
 
     payload = {}
