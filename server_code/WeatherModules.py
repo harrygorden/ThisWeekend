@@ -247,16 +247,16 @@ def check_weather_analysis_cache():
     """
     try:
         # Get most recent analysis from cache
-        most_recent = app_tables.weatheranalysis.search(
+        recent_analyses = app_tables.weatheranalysis.search(
             tables.order_by("timestamp", ascending=False)
         )
         
-        if most_recent and len(most_recent) > 0:
-            most_recent = most_recent[0]
+        if recent_analyses and len(recent_analyses) > 0:
+            most_recent = recent_analyses[0]
             
             # Delete any older entries
-            if len(most_recent) > 1:
-                for old_entry in most_recent[1:]:
+            if len(recent_analyses) > 1:
+                for old_entry in recent_analyses[1:]:
                     old_entry.delete()
             
             current_time = datetime.now(timezone.utc)
@@ -328,7 +328,7 @@ Keep the analysis brief but informative."""
                 anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
                 
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-4-mini",
                     messages=[
                         {"role": "system", "content": system_message},
                         {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
@@ -353,7 +353,7 @@ Keep the analysis brief but informative."""
             final_prompt += "\n\n".join(all_analyses)
             
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4-mini",
                 messages=[
                     {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone."},
                     {"role": "user", "content": final_prompt}
