@@ -151,13 +151,18 @@ def update_all_weather():
     Returns a tuple of (status_message, weather_data, formatted_weather)
     """
     try:
-        status, data, formatted = get_weather_openweathermap()
-        if data is None:
-            return f"Failed to update weather data: {status}", None, None
-        return f"Updated weather data from all sources:\n{status}", data, formatted
+        # Get OpenWeatherMap data
+        task = get_weather_openweathermap()
+        if task is None:
+            error_msg = "Failed to launch weather update task"
+            print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+            return error_msg, None, None
+            
+        return task  # Return the task directly to the client
+            
     except Exception as e:
-        error_msg = f"Error in update_all_weather: {str(e)}"
-        print(f"Server Error in update_all_weather: {str(e)}")  # Server-side logging
+        error_msg = f"Error updating weather data: {str(e)}"
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
         return error_msg, None, None
 
 @anvil.server.background_task

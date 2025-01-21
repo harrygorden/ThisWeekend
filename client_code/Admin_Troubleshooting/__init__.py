@@ -42,11 +42,11 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
           # Wait for the task to complete
           self.log_message("Waiting for weather data update to complete...")
           status, weather_data, formatted_weather = task.get_result()
-          self.log_message(status)
-          
-          if weather_data is None:
-            self.log_message("Failed to retrieve weather data. Check the log for details.")
+          if status.startswith("Error"):
+            self.log_message(f"Failed to update weather data: {status}")
             return
+          
+          self.log_message("Weather data successfully updated")
             
         except Exception as e:
           self.log_message(f"Error fetching fresh data: {str(e)}")
@@ -55,7 +55,10 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
         self.log_message("Using cached weather data.")
       
       # Display the formatted weather data
-      self.rich_text_weather_retrieval_output.content = formatted_weather
+      if formatted_weather:
+        self.rich_text_weather_retrieval_output.content = formatted_weather
+      else:
+        self.log_message("No weather data available to display")
       
     except Exception as e:
       self.log_message(f"Error retrieving weather data: {str(e)}")
