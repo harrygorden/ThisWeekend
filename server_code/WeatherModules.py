@@ -4,7 +4,7 @@ from anvil.tables import app_tables
 import anvil.secrets
 import anvil.server
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from . import CoreServerModule
 
 @anvil.server.callable
@@ -20,7 +20,8 @@ def check_weather_cache():
     
     if recent_weather and len(recent_weather) > 0:
         most_recent = recent_weather[0]
-        cache_age = datetime.now() - most_recent['timestamp']
+        current_time = datetime.now(timezone.utc)
+        cache_age = current_time - most_recent['timestamp']
         
         # If the cache is still valid (less than WeatherDataCacheExpiration minutes old)
         if cache_age < timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration):
@@ -52,7 +53,7 @@ def get_weather_openweathermap():
     
     # Add new row to weatherdata table with current timestamp and weather data
     app_tables.weatherdata.add_row(
-        timestamp=datetime.now(),
+        timestamp=datetime.now(timezone.utc),
         weatherdata_openweathermap=weather_data
     )
     
