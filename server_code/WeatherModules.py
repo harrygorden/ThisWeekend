@@ -115,7 +115,7 @@ def check_weather_cache():
             
             status_lines = [
                 f"Entry creation time: {creation_time_str}",
-                f"Entry age: {minutes_old} minutes",
+                f"    Entry age: {minutes_old} minutes",
             ]
             
             weather_data = most_recent['weatherdata_openweathermap']
@@ -123,10 +123,10 @@ def check_weather_cache():
             
             # If the cache is still valid (less than WeatherDataCacheExpiration minutes old)
             if cache_age < timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration):
-                status_lines.append("Expiration not reached, using cached data")
+                status_lines.append("    Expiration not reached, using cached data")
                 return "\n".join(status_lines), weather_data, formatted_weather
             else:
-                status_lines.append("Expiration reached, requesting updated information")
+                status_lines.append("    Expiration reached, requesting updated information")
                 return "\n".join(status_lines), None, None
         
         return "No existing weather data found in cache", None, None
