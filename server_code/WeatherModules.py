@@ -11,7 +11,7 @@ from . import CoreServerModule
 def check_weather_cache():
     """
     Check if we have recent weather data within the cache expiration window.
-    Returns the most recent weather data if valid, None if we need to fetch new data.
+    Returns a tuple of (status_message, weather_data) where weather_data may be None if cache is invalid
     """
     # Get the most recent weather data entry
     recent_weather = app_tables.weatherdata.search(
@@ -25,9 +25,10 @@ def check_weather_cache():
         
         # If the cache is still valid (less than WeatherDataCacheExpiration minutes old)
         if cache_age < timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration):
-            return most_recent['weatherdata_openweathermap']
+            minutes_old = int(cache_age.total_seconds() / 60)
+            return f"Found valid cached weather data ({minutes_old} minutes old)", most_recent['weatherdata_openweathermap']
     
-    return None
+    return "No valid cached weather data found", None
 
 @anvil.server.callable
 def update_all_weather():
@@ -35,26 +36,33 @@ def update_all_weather():
     Updates weather data from all available weather sources.
     Currently only fetches from OpenWeatherMap, but is designed to be extended
     for additional weather data sources in the future.
+    Returns a tuple of (status_message, weather_data)
     """
-    return get_weather_openweathermap()
+    status, data = get_weather_openweathermap()
+    return f"Updated weather data from all sources:\n{status}", data
 
 @anvil.server.callable
 def get_weather_openweathermap():
     """
     Fetches weather data from OpenWeatherMap API and stores it in the database.
+    Returns a tuple of (status_message, weather_data)
     """
-    url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
+    try:
+        url = f"https://api.openweathermap.org/data/3.0/onecall?lat=35.1495&lon=-90.049&appid={anvil.secrets.get_secret('OpenWeatherMap_Key')}"
 
-    payload = {}
-    headers = {}
+        payload = {}
+        headers = {}
 
-    response = requests.request("GET", url, headers=headers, data=payload)
-    weather_data = response.json()  # Parse JSON response
-    
-    # Add new row to weatherdata table with current timestamp and weather data
-    app_tables.weatherdata.add_row(
-        timestamp=datetime.now(timezone.utc),
-        weatherdata_openweathermap=weather_data
-    )
-    
-    return weather_data
+        response = requests.request("GET", url, headers=headers, data=payload)
+        weather_data = response.json()  # Parse JSON response
+        
+        # Add new row to weatherdata table with current timestamp and weather data
+        app_tables.weatherdata.add_row(
+            timestamp=datetime.now(timezone.utc),
+            weatherdata_openweathermap=weather_data
+        )
+        
+        return "Successfully retrieved and stored OpenWeatherMap data", weather_data
+    except Exception as e:
+        error_msg = f"Error fetching OpenWeatherMap data: {str(e)}"
+        return error_msg, None
