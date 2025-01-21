@@ -21,19 +21,39 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
     try:
       # First check the cache
       self.log_message("Checking weather cache...")
-      status, cached_data = anvil.server.call('check_weather_cache')
-      self.log_message(status)
+      try:
+        status, cached_data = anvil.server.call('check_weather_cache')
+        self.log_message(status)
+      except anvil.server.NoServerFunctionError:
+        self.log_message("Error: Server function 'check_weather_cache' not found. Please ensure the server code is up to date.")
+        return
+      except anvil.server.ConnectionError:
+        self.log_message("Error: Could not connect to the server. Please check your internet connection.")
+        return
+      except Exception as e:
+        self.log_message(f"Error checking cache: {str(e)}")
+        return
       
       if cached_data is None:
         # If no valid cached data, update weather from all sources
         self.log_message("Fetching fresh weather data...")
-        status, weather_data = anvil.server.call('update_all_weather')
-        self.log_message(status)
-        Notification("Weather data has been retrieved and saved to the database.").show()
+        try:
+          status, weather_data = anvil.server.call('update_all_weather')
+          self.log_message(status)
+          if weather_data is not None:
+            Notification("Weather data has been retrieved and saved to the database.").show()
+          else:
+            Notification("Failed to retrieve weather data. Check the log for details.", style="danger").show()
+        except anvil.server.ConnectionError:
+          self.log_message("Error: Could not connect to the server while fetching fresh data.")
+          Notification("Connection error while fetching fresh data.", style="danger").show()
+        except Exception as e:
+          self.log_message(f"Error fetching fresh data: {str(e)}")
+          Notification("Error fetching fresh data. Check the log for details.", style="danger").show()
       else:
         Notification("Using cached weather data.").show()
     except Exception as e:
-      error_msg = f"Error during weather retrieval: {str(e)}"
+      error_msg = f"Unexpected error during weather retrieval: {str(e)}"
       self.log_message(error_msg)
       Notification(error_msg, style="danger").show()
 
