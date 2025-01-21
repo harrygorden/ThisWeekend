@@ -298,7 +298,8 @@ def generate_weather_analysis_task(weather_data):
 4. Any significant weather events or hazards
 
 Note: All measurements are in imperial units (temperatures in °F, wind speeds in mph).
-Keep the analysis brief but informative."""
+For a more casual tone, round all measurements to whole numbers - no decimal places.
+Keep the analysis brief and conversational."""
         
         from . import LangChainModules
         
@@ -353,7 +354,7 @@ Keep the analysis brief but informative."""
             response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone. Remember that all measurements are in imperial units (temperatures in °F, wind speeds in mph)."},
+                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone. Remember that all measurements are in imperial units (temperatures in °F, wind speeds in mph). For a more casual tone, round all measurements to whole numbers - no decimal places."},
                     {"role": "user", "content": final_prompt}
                 ],
                 temperature=0.7,
