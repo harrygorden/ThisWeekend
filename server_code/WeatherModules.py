@@ -314,28 +314,105 @@ def generate_weather_analysis(weather_data):
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
         return None
 
+def optimize_weather_data(weather_data):
+    """
+    Optimizes weather data by removing unnecessary fields and flattening the structure
+    to reduce the size of data being sent to OpenAI's API.
+    """
+    try:
+        optimized_data = {
+            'location': {
+                'lat': weather_data.get('lat'),
+                'lon': weather_data.get('lon'),
+                'timezone': weather_data.get('timezone')
+            },
+            'current': {},
+            'daily': [],
+            'hourly': []
+        }
+        
+        # Optimize current weather
+        if 'current' in weather_data:
+            current = weather_data['current']
+            optimized_data['current'] = {
+                'temp': current.get('temp'),
+                'feels_like': current.get('feels_like'),
+                'humidity': current.get('humidity'),
+                'wind_speed': current.get('wind_speed'),
+                'weather': current.get('weather', [{}])[0].get('description'),
+                'pressure': current.get('pressure')
+            }
+        
+        # Optimize daily forecast (keep only next 5 days)
+        if 'daily' in weather_data:
+            for day in weather_data['daily'][:5]:
+                optimized_day = {
+                    'dt': day.get('dt'),
+                    'temp_day': day.get('temp', {}).get('day'),
+                    'temp_min': day.get('temp', {}).get('min'),
+                    'temp_max': day.get('temp', {}).get('max'),
+                    'humidity': day.get('humidity'),
+                    'wind_speed': day.get('wind_speed'),
+                    'weather': day.get('weather', [{}])[0].get('description'),
+                    'pop': day.get('pop'),
+                    'rain': day.get('rain', 0)
+                }
+                optimized_data['daily'].append(optimized_day)
+        
+        # Optimize hourly forecast (keep only next 24 hours)
+        if 'hourly' in weather_data:
+            for hour in weather_data['hourly'][:24]:
+                optimized_hour = {
+                    'dt': hour.get('dt'),
+                    'temp': hour.get('temp'),
+                    'humidity': hour.get('humidity'),
+                    'wind_speed': hour.get('wind_speed'),
+                    'weather': hour.get('weather', [{}])[0].get('description'),
+                    'pop': hour.get('pop')
+                }
+                optimized_data['hourly'].append(optimized_hour)
+        
+        return optimized_data
+    except Exception as e:
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Error optimizing weather data: {str(e)}")
+        return weather_data  # Return original data if optimization fails
+
 @anvil.server.background_task
 def generate_weather_analysis_task(weather_data):
     """
     Background task that generates a weather analysis using OpenAI's GPT-4 model.
     """
     try:
-        from . import LangChainModules
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Starting weather analysis generation")
         
-        # Update task state
-        anvil.server.task_state['status'] = 'Initializing OpenAI client'
+        # Optimize the weather data
+        optimized_data = optimize_weather_data(weather_data)
+        
+        # Convert the optimized data to JSON string
+        json_str = json.dumps(optimized_data)
+        
+        # Update the system message to focus on the most important aspects
+        system_message = """You are a weather analysis expert. Analyze the provided weather data and create a clear, concise summary focusing on:
+1. Current conditions
+2. Key weather changes in the next 24 hours
+3. Notable weather patterns in the next 5 days
+4. Any significant weather events or hazards
+Keep the analysis brief but informative."""
+
+        # Create messages for the API call
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": f"Please analyze this weather data and provide a clear summary: {json_str}"}
+        ]
+
+        from . import LangChainModules
         
         # Initialize OpenAI client
         client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
         # Split the weather data into manageable chunks
         anvil.server.task_state['status'] = 'Splitting weather data into chunks'
-        chunks = LangChainModules.split_json_data(weather_data, max_chunk_size=2000)
-        
-        # Prepare the system message
-        system_message = """You are an experienced weather forecaster. Analyze the provided weather data chunks 
-        and generate a comprehensive weather forecast to help readers prepare for the hours and days ahead. 
-        Focus on key information such as temperature trends, precipitation chances, and notable weather events."""
+        chunks = LangChainModules.split_json_data(optimized_data, max_chunk_size=2000)
         
         # Process each chunk and collect insights
         all_analyses = []
