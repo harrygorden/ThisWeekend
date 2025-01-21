@@ -2,7 +2,25 @@ allow_embedding: false
 db_schema:
   openaiapipricing:
     client: none
-    columns: []
+    columns:
+    - admin_ui: {width: 200}
+      name: model
+      type: string
+    - admin_ui: {width: 200}
+      name: input_price
+      type: number
+    - admin_ui: {width: 200}
+      name: output_price
+      type: number
+    - admin_ui: {width: 200}
+      name: cached_input_price
+      type: number
+    - admin_ui: {width: 200}
+      name: batch_input_price
+      type: number
+    - admin_ui: {width: 200}
+      name: batch_output_price
+      type: number
     server: full
     title: OpenAIAPIPricing
   weatheranalysis:
