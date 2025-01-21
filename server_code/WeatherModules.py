@@ -328,7 +328,7 @@ Keep the analysis brief but informative."""
                 anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
                 
                 response = client.chat.completions.create(
-                    model="gpt-4-mini",
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_message},
                         {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
@@ -353,7 +353,7 @@ Keep the analysis brief but informative."""
             final_prompt += "\n\n".join(all_analyses)
             
             response = client.chat.completions.create(
-                model="gpt-4-mini",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone."},
                     {"role": "user", "content": final_prompt}
