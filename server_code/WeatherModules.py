@@ -22,12 +22,8 @@ def format_weather_data(weather_data):
         def k_to_f(k):
             return round((k - 273.15) * 9/5 + 32, 1)
         
-        # Convert Unix timestamp to local time string
-        def timestamp_to_local(ts):
-            return datetime.fromtimestamp(ts).strftime("%I:%M %p")
-        
         # Current time from the API data
-        current_time = timestamp_to_local(current.get('dt', 0))
+        current_time = CoreServerModule.timestamp_to_local(current.get('dt', 0))
         
         current_temp = k_to_f(current.get('temp', 0))
         feels_like = k_to_f(current.get('feels_like', 0))
@@ -77,7 +73,7 @@ def format_weather_data(weather_data):
         for i in range(0, 9):  # 8 3-hour intervals = 24 hours
             if i < len(hourly):
                 hour_data = hourly[i * 3]  # Get every 3rd hour
-                time = timestamp_to_local(hour_data.get('dt', 0))
+                time = CoreServerModule.timestamp_to_local(hour_data.get('dt', 0))
                 temp = k_to_f(hour_data.get('temp', 0))
                 weather = hour_data.get('weather', [{}])[0]
                 description = weather.get('description', 'No description available').capitalize()
