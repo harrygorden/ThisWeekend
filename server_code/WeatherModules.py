@@ -300,40 +300,80 @@ def check_weather_analysis_cache():
 @anvil.server.callable
 def generate_weather_analysis(weather_data):
     """
-    Generates a weather analysis using OpenAI's GPT-4-mini model.
+    Generates a weather analysis using OpenAI's GPT-4 model.
     Returns the generated analysis text.
     """
     try:
+        from . import LangChainModules
+        
         # Initialize OpenAI client
         client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
-        # Prepare the messages for the API
-        system_message = "You are an experienced weather forecaster. Take the JSON formatted weather data that is provided to you and generate a weather forecast to help the reader prepare for the hours and days ahead."
+        # Split the weather data into manageable chunks
+        # Using a smaller max_chunk_size to ensure we stay well under the token limit
+        chunks = LangChainModules.split_json_data(weather_data, max_chunk_size=2000)
         
-        # Convert weather_data to string if it's not already
-        weather_json = json.dumps(weather_data) if isinstance(weather_data, dict) else str(weather_data)
+        # Prepare the system message
+        system_message = """You are an experienced weather forecaster. Analyze the provided weather data chunks 
+        and generate a comprehensive weather forecast to help readers prepare for the hours and days ahead. 
+        Focus on key information such as temperature trends, precipitation chances, and notable weather events."""
         
-        # Make the API call
-        response = client.chat.completions.create(
-            model="gpt-4",  # Note: Using gpt-4 as gpt-4-mini wasn't recognized
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": weather_json}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
+        # Process each chunk and collect insights
+        all_analyses = []
+        for i, chunk in enumerate(chunks):
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
+                    ],
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                
+                analysis = response.choices[0].message.content
+                all_analyses.append(analysis)
+                print(f"[{CoreServerModule.get_current_time_formatted()}] Successfully analyzed chunk {i+1}/{len(chunks)}")
+                
+            except Exception as e:
+                error_msg = f"Error processing chunk {i+1}: {str(e)}"
+                print(f"[{CoreServerModule.get_current_time_formatted()}] Warning: {error_msg}")
+                continue
         
-        # Extract the analysis text
-        analysis_text = response.choices[0].message.content
+        if not all_analyses:
+            raise Exception("Failed to generate any analysis from the weather data chunks")
         
-        # Store the analysis in the database
-        app_tables.weatheranalysis.add_row(
-            timestamp=datetime.now(timezone.utc),
-            weatheranalysis=analysis_text
-        )
-        
-        return analysis_text
+        # Combine all analyses into a final summary
+        try:
+            final_prompt = "Based on the following weather analysis chunks, provide a concise and coherent summary:\n\n"
+            final_prompt += "\n\n".join(all_analyses)
+            
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses."},
+                    {"role": "user", "content": final_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=500
+            )
+            
+            final_analysis = response.choices[0].message.content
+            
+            # Store the analysis in the database
+            app_tables.weatheranalysis.add_row(
+                timestamp=datetime.now(timezone.utc),
+                weatheranalysis=final_analysis
+            )
+            
+            return final_analysis
+            
+        except Exception as e:
+            error_msg = f"Error generating final summary: {str(e)}"
+            print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+            # If we can't generate a summary, return the first analysis
+            return all_analyses[0]
         
     except Exception as e:
         error_msg = f"Error generating weather analysis: {str(e)}"
