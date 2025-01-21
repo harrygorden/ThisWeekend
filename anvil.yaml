@@ -1,4 +1,32 @@
 allow_embedding: false
+db_schema:
+  openaiapipricing:
+    client: none
+    columns: []
+    server: full
+    title: OpenAIAPIPricing
+  weatheranalysis:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: timestamp
+      type: datetime
+    - admin_ui: {order: 1, width: 200}
+      name: weatheranalysis
+      type: string
+    server: full
+    title: WeatherAnalysis
+  weatherdata:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: timestamp
+      type: datetime
+    - admin_ui: {order: 1, width: 200}
+      name: weatherdata_openweathermap
+      type: simpleObject
+    server: full
+    title: WeatherData
 dependencies: []
 name: ThisWeekend
 package_name: ThisWeekend
