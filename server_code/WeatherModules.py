@@ -7,6 +7,7 @@ import requests
 from datetime import datetime, timedelta
 from . import CoreServerModule
 
+@anvil.server.callable
 def check_weather_cache():
     """
     Check if we have recent weather data within the cache expiration window.
