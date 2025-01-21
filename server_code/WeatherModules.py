@@ -250,20 +250,6 @@ def check_weather_analysis_cache():
     Returns a tuple of (status_message, analysis_text) where analysis_text may be None if cache is invalid
     """
     try:
-        # Ensure settings table exists and has default values
-        if not app_tables.get('settings'):
-            print(f"[{CoreServerModule.get_current_time_formatted()}] Creating settings table with default values")
-            app_tables.add_table('settings', 
-                               columns=[
-                                   ('WeatherDataCacheExpiration', 'number'),
-                                   ('WeatherAnalysisCacheExpiration', 'number')
-                               ])
-            # Add default settings
-            app_tables.settings.add_row(
-                WeatherDataCacheExpiration=30,  # 30 minutes
-                WeatherAnalysisCacheExpiration=30  # 30 minutes
-            )
-
         # Get most recent analysis from cache
         most_recent = app_tables.weatheranalysis.search(
             tables.order_by("timestamp", ascending=False)
@@ -294,22 +280,108 @@ def check_weather_analysis_cache():
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
         return (error_msg, None)
 
-@anvil.server.callable
-def generate_weather_analysis(weather_data):
+@anvil.server.background_task
+def generate_weather_analysis_task(weather_data):
     """
-    Launches a background task to generate weather analysis using OpenAI's GPT-4 model.
-    Returns the background task that will eventually provide the analysis.
+    Background task that generates a weather analysis using OpenAI's GPT-4 model.
     """
     try:
-        # Launch the background task
-        task = anvil.server.launch_background_task('generate_weather_analysis_task', weather_data)
-        print(f"[{CoreServerModule.get_current_time_formatted()}] Launched weather analysis background task")
-        return task
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Starting weather analysis generation")
+        
+        # Optimize the weather data
+        optimized_data = optimize_weather_data(weather_data)
+        
+        # Convert the optimized data to JSON string
+        json_str = json.dumps(optimized_data)
+        
+        # Update the system message to focus on the most important aspects
+        system_message = """You are a weather analysis expert. Analyze the provided weather data and create a clear, concise summary focusing on:
+1. Current conditions
+2. Key weather changes in the next 24 hours
+3. Notable weather patterns in the next 5 days
+4. Any significant weather events or hazards
+Keep the analysis brief but informative."""
+        
+        from . import LangChainModules
+        
+        # Initialize OpenAI client
+        client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
+        
+        try:
+            # Split the weather data into chunks
+            anvil.server.task_state['status'] = 'Starting JSON splitting task'
+            split_task = anvil.server.launch_background_task('split_json_data', optimized_data, max_chunk_size=2000)
+            
+            # Wait for chunks and update status with timeout
+            anvil.server.task_state['status'] = 'Waiting for JSON splitting to complete'
+            try:
+                chunks = split_task.get_result(timeout=30)  # 30 second timeout
+            except Exception as e:
+                print(f"[{CoreServerModule.get_current_time_formatted()}] Error waiting for split task: {str(e)}")
+                chunks = [json_str]  # Use single chunk as fallback
+            
+        except Exception as e:
+            print(f"[{CoreServerModule.get_current_time_formatted()}] Error in JSON splitting: {str(e)}")
+            chunks = [json_str]  # Use single chunk as fallback
+        
+        # Process each chunk and collect insights
+        all_analyses = []
+        
+        for i, chunk in enumerate(chunks):
+            try:
+                anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
+                
+                response = client.chat.completions.create(
+                    model="gpt-4-mini",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
+                    ],
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                
+                analysis = response.choices[0].message.content.strip()
+                all_analyses.append(analysis)
+                
+                print(f"[{CoreServerModule.get_current_time_formatted()}] Successfully analyzed chunk {i+1}/{len(chunks)}")
+                
+            except Exception as e:
+                error_msg = f"Error analyzing chunk {i+1}: {str(e)}"
+                print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+                all_analyses.append(f"Error analyzing chunk {i+1}: Unable to process this portion of the data")
+        
+        # If we have multiple analyses, combine them
+        if len(all_analyses) > 1:
+            final_prompt = "Please combine these weather analyses into a single coherent summary:\n\n"
+            final_prompt += "\n\n".join(all_analyses)
+            
+            response = client.chat.completions.create(
+                model="gpt-4-mini",
+                messages=[
+                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone."},
+                    {"role": "user", "content": final_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=500
+            )
+            
+            final_analysis = response.choices[0].message.content.strip()
+        else:
+            final_analysis = all_analyses[0]
+        
+        # Store the analysis in the database
+        app_tables.weatheranalysis.add_row(
+            timestamp=datetime.now(timezone.utc),
+            weatheranalysis=final_analysis
+        )
+        
+        return {'analysis': final_analysis}
         
     except Exception as e:
-        error_msg = f"Error launching weather analysis task: {str(e)}"
+        error_msg = f"Error generating weather analysis: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-        return None
+        return {'error': error_msg}
 
 def optimize_weather_data(weather_data):
     """
@@ -374,112 +446,19 @@ def optimize_weather_data(weather_data):
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error optimizing weather data: {str(e)}")
         return weather_data  # Return original data if optimization fails
 
-@anvil.server.background_task
-def generate_weather_analysis_task(weather_data):
+@anvil.server.callable
+def generate_weather_analysis(weather_data):
     """
-    Background task that generates a weather analysis using OpenAI's GPT-4 model.
+    Launches a background task to generate weather analysis using OpenAI's GPT-4 model.
+    Returns the background task that will eventually provide the analysis.
     """
     try:
-        print(f"[{CoreServerModule.get_current_time_formatted()}] Starting weather analysis generation")
-        
-        # Optimize the weather data
-        optimized_data = optimize_weather_data(weather_data)
-        
-        # Convert the optimized data to JSON string
-        json_str = json.dumps(optimized_data)
-        
-        # Update the system message to focus on the most important aspects
-        system_message = """You are a weather analysis expert. Analyze the provided weather data and create a clear, concise summary focusing on:
-1. Current conditions
-2. Key weather changes in the next 24 hours
-3. Notable weather patterns in the next 5 days
-4. Any significant weather events or hazards
-Keep the analysis brief but informative."""
-        
-        from . import LangChainModules
-        
-        # Initialize OpenAI client
-        client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
-        
-        try:
-            # Split the weather data into chunks
-            anvil.server.task_state['status'] = 'Starting JSON splitting task'
-            split_task = anvil.server.launch_background_task('split_json_data', optimized_data, max_chunk_size=2000)
-            
-            # Wait for chunks and update status with timeout
-            anvil.server.task_state['status'] = 'Waiting for JSON splitting to complete'
-            chunks = split_task.get_result(timeout=30)  # 30 second timeout
-            
-        except Exception as e:
-            print(f"[{CoreServerModule.get_current_time_formatted()}] Error in JSON splitting: {str(e)}")
-            # If splitting fails, try to analyze the entire optimized data as one chunk
-            chunks = [json_str]
-        
-        # Process each chunk and collect insights
-        all_analyses = []
-        for i, chunk in enumerate(chunks):
-            try:
-                anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
-                
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
-                    ],
-                    temperature=0.7,
-                    max_tokens=500
-                )
-                
-                analysis = response.choices[0].message.content
-                all_analyses.append(analysis)
-                print(f"[{CoreServerModule.get_current_time_formatted()}] Successfully analyzed chunk {i+1}/{len(chunks)}")
-                
-            except Exception as e:
-                error_msg = f"Error processing chunk {i+1}: {str(e)}"
-                print(f"[{CoreServerModule.get_current_time_formatted()}] Warning: {error_msg}")
-                continue
-        
-        if not all_analyses:
-            raise Exception("Failed to generate any analysis from the weather data chunks")
-        
-        # Combine all analyses into a final summary
-        try:
-            anvil.server.task_state['status'] = 'Generating final summary'
-            
-            final_prompt = "Based on the following weather analysis chunks, provide a concise and coherent summary:\n\n"
-            final_prompt += "\n\n".join(all_analyses)
-            
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone."},
-                    {"role": "user", "content": final_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=500
-            )
-            
-            final_analysis = response.choices[0].message.content
-            
-            # Store the analysis in the database
-            anvil.server.task_state['status'] = 'Storing analysis in database'
-            app_tables.weatheranalysis.add_row(
-                timestamp=datetime.now(timezone.utc),
-                weatheranalysis=final_analysis
-            )
-            
-            anvil.server.task_state['status'] = 'Complete'
-            return {'analysis': final_analysis}
-            
-        except Exception as e:
-            error_msg = f"Error generating final summary: {str(e)}"
-            print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-            # If we can't generate a summary, return the first analysis
-            return {'analysis': all_analyses[0]}
+        # Launch the background task
+        task = anvil.server.launch_background_task('generate_weather_analysis_task', weather_data)
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Launched weather analysis background task")
+        return task
         
     except Exception as e:
-        error_msg = f"Error generating weather analysis: {str(e)}"
+        error_msg = f"Error launching weather analysis task: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-        anvil.server.task_state['error'] = error_msg
         return None
