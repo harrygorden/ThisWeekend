@@ -6,7 +6,7 @@ import anvil.server
 from datetime import datetime, timedelta, timezone
 
 # Constants
-WeatherDataCacheExpiration = 60  # Weather data cache expiration time in minutes
+WeatherDataCacheExpiration = 1  # Weather data cache expiration time in minutes
 
 # This is a server module. It runs on the Anvil server,
 # rather than in the user's browser.
