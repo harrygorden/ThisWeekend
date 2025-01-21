@@ -23,13 +23,26 @@ def check_weather_cache():
             most_recent = recent_weather[0]
             current_time = datetime.now(timezone.utc)
             cache_age = current_time - most_recent['timestamp']
+            minutes_old = int(cache_age.total_seconds() / 60)
+            
+            # Format the creation time in a readable format (convert from UTC to local time)
+            creation_time = most_recent['timestamp'].replace(tzinfo=timezone.utc).astimezone()
+            creation_time_str = creation_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+            
+            status_lines = [
+                f"Entry creation time: {creation_time_str}",
+                f"Entry age: {minutes_old} minutes",
+            ]
             
             # If the cache is still valid (less than WeatherDataCacheExpiration minutes old)
             if cache_age < timedelta(minutes=CoreServerModule.WeatherDataCacheExpiration):
-                minutes_old = int(cache_age.total_seconds() / 60)
-                return f"Found valid cached weather data ({minutes_old} minutes old)", most_recent['weatherdata_openweathermap']
+                status_lines.append("Expiration not reached, using cached data")
+                return "\n".join(status_lines), most_recent['weatherdata_openweathermap']
+            else:
+                status_lines.append("Expiration reached, requesting updated information")
+                return "\n".join(status_lines), None
         
-        return "No valid cached weather data found", None
+        return "No existing weather data found in cache", None
     except Exception as e:
         error_msg = f"Error checking weather cache: {str(e)}"
         print(f"Server Error in check_weather_cache: {str(e)}")  # Server-side logging
