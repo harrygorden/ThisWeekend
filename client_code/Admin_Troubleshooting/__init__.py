@@ -41,7 +41,7 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
             
           # Wait for the task to complete
           self.log_message("Waiting for weather data update to complete...")
-          status, weather_data, formatted_weather = task.get_result()
+          status, weather_data, formatted_weather = task.wait_for_result()
           if status.startswith("Error"):
             self.log_message(f"Failed to update weather data: {status}")
             return
