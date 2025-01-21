@@ -19,9 +19,10 @@ from . import CoreServerModule
 #   return 42
 #
 
+@anvil.server.background_task
 def split_json_data(json_data, max_chunk_size=1000, convert_lists=True):
     """
-    Splits JSON data into smaller chunks using LangChain's RecursiveJsonSplitter.
+    Background task that splits JSON data into smaller chunks using LangChain's RecursiveJsonSplitter.
     
     Args:
         json_data (dict or str): The JSON data to split. Can be either a dictionary or a JSON string.
@@ -32,29 +33,31 @@ def split_json_data(json_data, max_chunk_size=1000, convert_lists=True):
     Returns:
         list: A list of JSON chunks as strings, each under max_chunk_size characters
               (when convert_lists=True)
-    
-    Example:
-        >>> weather_data = {"current": {...}, "hourly": [...], "daily": [...]}
-        >>> chunks = split_json_data(weather_data)
-        >>> for chunk in chunks:
-        >>>     print(f"Chunk size: {len(chunk)}")
-        >>>     print(chunk)
     """
     try:
+        anvil.server.task_state['status'] = 'Initializing JSON splitter'
+        
         # Initialize the splitter with specified chunk size
         splitter = RecursiveJsonSplitter(max_chunk_size=max_chunk_size)
         
+        anvil.server.task_state['status'] = 'Splitting JSON data'
         # Split the JSON data into text chunks
         chunks = splitter.split_text(json_data=json_data, convert_lists=convert_lists)
         
         # Log some information about the chunks
         chunk_sizes = [len(chunk) for chunk in chunks]
-        print(f"[{CoreServerModule.get_current_time_formatted()}] Split JSON into {len(chunks)} chunks")
-        print(f"[{CoreServerModule.get_current_time_formatted()}] Chunk sizes: {chunk_sizes}")
+        avg_size = sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0
+        max_size = max(chunk_sizes) if chunk_sizes else 0
         
+        print(f"[{CoreServerModule.get_current_time_formatted()}] Split JSON data into {len(chunks)} chunks:")
+        print(f"[{CoreServerModule.get_current_time_formatted()}] - Average chunk size: {avg_size:.0f} characters")
+        print(f"[{CoreServerModule.get_current_time_formatted()}] - Maximum chunk size: {max_size:.0f} characters")
+        
+        anvil.server.task_state['status'] = f'Completed splitting into {len(chunks)} chunks'
         return chunks
         
     except Exception as e:
         error_msg = f"Error splitting JSON data: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
+        anvil.server.task_state['status'] = f'Error: {error_msg}'
         raise Exception(error_msg)

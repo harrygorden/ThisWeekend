@@ -410,9 +410,13 @@ Keep the analysis brief but informative."""
         # Initialize OpenAI client
         client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
-        # Split the weather data into manageable chunks
-        anvil.server.task_state['status'] = 'Splitting weather data into chunks'
-        chunks = LangChainModules.split_json_data(optimized_data, max_chunk_size=2000)
+        # Split the weather data into chunks
+        anvil.server.task_state['status'] = 'Starting JSON splitting task'
+        split_task = anvil.server.launch_background_task('split_json_data', optimized_data, max_chunk_size=2000)
+        
+        # Wait for chunks and update status
+        anvil.server.task_state['status'] = 'Waiting for JSON splitting to complete'
+        chunks = split_task.get_result()
         
         # Process each chunk and collect insights
         all_analyses = []
@@ -421,7 +425,7 @@ Keep the analysis brief but informative."""
                 anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
                 
                 response = client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_message},
                         {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
@@ -450,9 +454,9 @@ Keep the analysis brief but informative."""
             final_prompt += "\n\n".join(all_analyses)
             
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses."},
+                    {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone."},
                     {"role": "user", "content": final_prompt}
                 ],
                 temperature=0.7,
