@@ -39,11 +39,21 @@ class Admin_Troubleshooting(Admin_TroubleshootingTemplate):
         # If no valid cached data, update weather from all sources
         self.log_message("Fetching fresh weather data...")
         try:
-          status, weather_data, formatted_weather = anvil.server.call('update_all_weather')
+          # Launch the background task
+          task = anvil.server.call('update_all_weather')
+          if task is None:
+            self.log_message("Failed to launch weather update task")
+            return
+            
+          # Wait for the task to complete
+          self.log_message("Waiting for weather data update to complete...")
+          status, weather_data, formatted_weather = task.get_result()
           self.log_message(status)
+          
           if weather_data is None:
             self.log_message("Failed to retrieve weather data. Check the log for details.")
             return
+            
         except anvil.server.ConnectionError:
           self.log_message("Error: Could not connect to the server while fetching fresh data.")
           return

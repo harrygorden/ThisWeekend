@@ -206,13 +206,12 @@ def get_weather_openweathermap_task():
 def get_weather_openweathermap():
     """
     Launches a background task to fetch weather data from OpenWeatherMap API.
-    Returns a tuple of (status_message, weather_data, formatted_weather)
+    Returns the background task object that will eventually return a tuple of (status_message, weather_data, formatted_weather)
     """
     try:
-        # Launch the background task
-        task = anvil.server.launch_background_task('get_weather_openweathermap_task')
-        return task.get_result()
+        # Launch the background task and return it immediately
+        return anvil.server.launch_background_task('get_weather_openweathermap_task')
     except Exception as e:
         error_msg = f"Error launching weather update task: {str(e)}"
         print(f"[{CoreServerModule.get_current_time_formatted()}] Error: {error_msg}")
-        return error_msg, None, None
+        return None
