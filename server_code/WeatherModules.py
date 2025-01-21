@@ -305,7 +305,7 @@ def generate_weather_analysis(weather_data):
     """
     try:
         # Initialize OpenAI client
-        client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key'))
+        client = openai.OpenAI(api_key=anvil.secrets.get_secret('OpenAI_Key_WeatherAnalysis'))
         
         # Prepare the messages for the API
         system_message = "You are an experienced weather forecaster. Take the JSON formatted weather data that is provided to you and generate a weather forecast to help the reader prepare for the hours and days ahead."
