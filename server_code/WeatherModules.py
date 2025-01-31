@@ -327,7 +327,7 @@ Keep the analysis brief, conversational, and focused on Memphis only."""
                 anvil.server.task_state['status'] = f'Analyzing chunk {i+1} of {len(chunks)}'
                 
                 response = client.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_message},
                         {"role": "user", "content": f"Analyzing weather data chunk {i+1}/{len(chunks)}:\n{chunk}"}
@@ -352,7 +352,7 @@ Keep the analysis brief, conversational, and focused on Memphis only."""
             final_prompt += "\n\n".join(all_analyses)
             
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are an experienced weather forecaster. Create a clear and concise summary of the following weather analyses while maintaining a casual tone. Remember that all measurements are in imperial units (temperatures in °F, wind speeds in mph). For a more casual tone, round all measurements to whole numbers - no decimal places."},
                     {"role": "user", "content": final_prompt}
